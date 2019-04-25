@@ -7,6 +7,7 @@
 #define __IMAGE_RECOGNITON_H__
 #include <dp.h>
 #include <opencv2/core.hpp>
+#include "imageSplit.h"
 
 using cv::Mat;
 using cv::Vec4i;
@@ -28,14 +29,18 @@ protected:
 	virtual BOOL FilterImg(Mat& srcImg, Mat& destImg)=0;
 	virtual BOOL ThresholdImg(Mat& srcImg, Mat& destImg)=0;
 
-	virtual BOOL ExtractUsefulParts(Mat& srcImg, vector<Vec4i>& extractInfo)=0;
-	virtual BOOL SplitUsefulPart(Mat& partImg, vector<Vec4i>& splitInfo)=0;
-	virtual BOOL Recogniton(Mat& splitImg, char* pOutBuf, int len)=0;
+	virtual BOOL ExtractUsefulParts(Mat& srcImg, vector<CImageSplit*>& partsForSplit)=0;
+	virtual void OnExtractUsefulPartImg(Mat& partImg, int partIdx) = 0;
+
+	virtual BOOL SplitUsefulPart(CImageSplit* pPartForSplit, vector<Vec4i>& splitInfo)=0;
+	virtual void OnSplitUsefulPartImg(Mat& splitImg, int partIdx, int splitIdx) = 0;
+
+	virtual BOOL Recogniton(CImageSplit* pPartForSplit)=0;
 
 protected:
 	Mat		m_orgImg;
 	Mat		m_binImg;	
-	vector<Vec4i> m_extractParts;
+	vector<CImageSplit*> m_partsForSplit;
 };
 
 

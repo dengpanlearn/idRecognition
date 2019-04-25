@@ -7,6 +7,7 @@
 #define __IMAGE_SPLIT_H__
 #include<dp.h>
 #include <opencv2/core.hpp>
+#include "spliteRecognition.h"
 
 using std::vector;
 using cv::Mat;
@@ -22,13 +23,21 @@ public:
 	BOOL InitSplit();
 	BOOL Split(vector<Vec4i>& childInfo);
 
+	void SplitRecognition();
+	inline void GetOrgImg(Mat& orgImg);
+
 protected:
 	virtual BOOL InitSplit(Mat& orgImg)=0;
 	virtual BOOL Split(Mat& orgImg, vector<Vec4i>& childInfo) = 0;
 
 private:
-	Mat	m_orgImg;
+	Mat							m_orgImg;
+	vector<CSpliteRecognition*> m_splitsForRecog;
 };
 
+inline void CImageSplit::GetOrgImg(Mat& orgImg)
+{
+	orgImg = m_orgImg;
+}
 #endif // !__IMAGE_SPLIT_H__
 

@@ -22,10 +22,15 @@ CImageSplit::~CImageSplit()
 
 BOOL CImageSplit::InitSplit()
 {
-	InitSplit(m_orgImg);
+	return InitSplit(m_orgImg);
 }
 
 BOOL CImageSplit::Split(vector<Vec4i>& childInfo)
 {
-	Split(m_orgImg, childInfo);
+	return Split(m_orgImg, childInfo);
+}
+
+void CImageSplit::SplitRecognition()
+{
+
 }
