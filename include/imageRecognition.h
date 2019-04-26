@@ -22,7 +22,7 @@ public:
 
 public:
 	BOOL LoadImg(const char* pFileName);
-	BOOL ExtractUsefulParts();
+	BOOL ExtractAllUsefulParts();
 	BOOL Recognition();
 
 protected:

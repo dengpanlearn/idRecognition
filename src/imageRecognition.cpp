@@ -37,10 +37,17 @@ BOOL CImageRecognition::LoadImg(const char* pFileName)
 		return FALSE;
 
 	m_partsForSplit.clear();
+
+	namedWindow("org Img", WINDOW_NORMAL);
+	namedWindow("gray Img", WINDOW_NORMAL);
+	namedWindow("bin Img", WINDOW_NORMAL);
+	imshow("org Img", m_orgImg);
+	imshow("gray Img", grayImg);
+	imshow("bin Img", m_binImg);
 	return TRUE;
 }
 
-BOOL CImageRecognition::ExtractUsefulParts()
+BOOL CImageRecognition::ExtractAllUsefulParts()
 {
 	if (!ExtractUsefulParts(m_binImg, m_partsForSplit))
 		return FALSE;
