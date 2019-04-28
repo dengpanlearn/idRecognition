@@ -6,26 +6,27 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+#include "../include/charSplit.h"
 #include "../include/idCardRecognition.h"
 
 using namespace std;
 using namespace cv;
 
 // threshold for id card image
-#define	ID_CARD_IMAGE_THRESHOLD_TO_BIN							120		
+#define	ID_CARD_IMAGE_THRESHOLD_TO_BIN							116		
 
 #define	ID_CARD_NO_ROWS_MIN(_imgrows)							((_imgrows)/3)
 #define	ID_CARD_NO_MIN_POINTS_PER_ROWLINE(_imgcols)				((_imgcols)/12)
 #define	ID_CARD_NO_MIN_ROWLINES_FOR_CHECK_START							(30)
 #define	ID_CARD_NO_MIN_ROWLINES_FOR_CHECK_END							(30)
 #define	ID_CARD_NO_MIN_COLLINES_FOR_CHECK_START(charRows)				((charRows)/6)
-#define	ID_CARD_NO_MIN_COLLINES_FOR_CHECK_END(charRows)					((charRows)/8)
+#define	ID_CARD_NO_MIN_COLLINES_FOR_CHECK_END(charRows)					((charRows)/10)
 #define ID_CARD_NO_MIN_CHARS											20
 #define	ID_CARD_NO_CHARS_MAX_BETWEENS(charRows)							((charRows)/2)
 #define ID_CARD_NO_MIN_CHARS_FOR_CHECK									3
 
 #define ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_START(charCols)			((charCols)/6)
-#define ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_END(charCols)				((charCols)/8)
+#define ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_END(charCols)				((charCols)/10)
 #define ID_CARD_CHAR_GROUPS_WITHOUT_CARD_NO								4
 
 #define ID_CARD_COMPENSATE_POINTS_FOR_COL_ROW(charCols)					((charCols)/6)
@@ -35,6 +36,8 @@ using namespace cv;
 #define	ID_CARD_HEAD_IMG_MIN_COLLINES_FOR_CHECK_END							(15)
 #define	ID_CARD_HEAD_IMG_MIN_ROWLINES_FOR_CHECK_START						(15)
 #define	ID_CARD_HEAD_IMG_MIN_ROWLINES_FOR_CHECK_END							(15)
+
+#define ID_CARD_IMG_NAME_MAX				64
 
 CIdCardRecognition::CIdCardRecognition()
 {
@@ -48,6 +51,7 @@ CIdCardRecognition::~CIdCardRecognition()
 
 BOOL CIdCardRecognition::FilterImg(Mat& srcImg, Mat& destImg)
 {
+//	medianBlur(srcImg, destImg, 3);
 	return TRUE;
 }
 
@@ -74,39 +78,81 @@ BOOL CIdCardRecognition::ExtractUsefulParts(Mat& srcImg, vector<CImageSplit*>& p
 
 	if (cardNoInfo[2] > compensates)
 		cardNoInfo[2] -= compensates;
-#if 1
+
 	Mat usefulImg = srcImg(Range(startRow, cardNoInfo[1]), Range(cardNoInfo[2], cardNoInfo[3]));
-	
+#if 0
 	namedWindow("useful img", WINDOW_NORMAL);
 	imshow("useful img", usefulImg);
+#endif
 
 	Vec4i headImgInfo;
 	Mat noneCardNoImg = srcImg(Range(startRow, cardNoInfo[0]), Range(cardNoInfo[2], cardNoInfo[3]));
 	if (ExtractIdCardHeadImg(noneCardNoImg, headImgInfo))
 	{
+#if 0
 		namedWindow("head img", WINDOW_NORMAL);
 		imshow("head img", noneCardNoImg(Range(headImgInfo[0], headImgInfo[1]), Range(headImgInfo[2], headImgInfo[3])));
-
+#endif
 		vector<Vec2i> charGroupsInfo;
 		Mat groupsImg = noneCardNoImg(Range::all(), Range(0, headImgInfo[2]));
-
-		if (ExtractIdCardCharGroups(groupsImg, charGroupsInfo, cardNoFirstCharInfo[1]- cardNoFirstCharInfo[0]))
+		int charCols = cardNoFirstCharInfo[1] - cardNoFirstCharInfo[0];
+		if (ExtractIdCardCharGroups(groupsImg, charGroupsInfo, charCols))
 		{
 			for (int k = 0; k < charGroupsInfo.size(); k++)
 			{
+				Mat splitImg = groupsImg(Range(charGroupsInfo[k][0], charGroupsInfo[k][1]), Range::all());
+				IMAGE_SPLIT_PARAM splitParam;
+				splitParam.minSplitUnits = 2;
+				splitParam.rowLinesForChkStart = ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_START(charCols);
+				splitParam.rowLinesForChkEnd = ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_END(charCols);
+
+				splitParam.colLinesForChkStart = splitParam.rowLinesForChkStart;
+				splitParam.colLinesForChkEnd = splitParam.rowLinesForChkEnd;
+			//	if (splitParam.colLinesForChkEnd > 3)
+				//	splitParam.colLinesForChkEnd = 3;
+				CCharSplit* pCharSplit = new CCharSplit(splitImg, &splitParam);
+
+				if (pCharSplit != NULL)
+					partsForSplit.push_back(pCharSplit);
+#if 0
 				char windName[32] = { 0 };
 				sprintf(windName, "char%d",k);
 				namedWindow(windName, WINDOW_NORMAL);
 
 				imshow(windName, groupsImg(Range(charGroupsInfo[k][0], charGroupsInfo[k][1]), Range::all()));
+#endif
 			}
 		}
 	
-	
+		IMAGE_SPLIT_PARAM splitCardNoParam;
+		splitCardNoParam.minSplitUnits = 2;
+		splitCardNoParam.rowLinesForChkStart = ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_START(charCols);
+		splitCardNoParam.rowLinesForChkEnd = ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_END(charCols);
+
+		splitCardNoParam.colLinesForChkStart = splitCardNoParam.rowLinesForChkStart;
+		splitCardNoParam.colLinesForChkEnd = splitCardNoParam.rowLinesForChkEnd;
+
+		Mat cardNoImg = srcImg(Range(cardNoInfo[0], cardNoInfo[1]), Range(cardNoInfo[2], cardNoInfo[3]));
+		CCharSplit* pCharCardNoSplit = new CCharSplit(cardNoImg, &splitCardNoParam);
+
+		if (pCharCardNoSplit != NULL)
+			partsForSplit.push_back(pCharCardNoSplit);
 	}
-	waitKey(0);
-#endif
+
 	return TRUE;
+}
+
+void CIdCardRecognition::FreeUsefulParts(vector<CImageSplit*>& partsForSplit)
+{
+	vector<CImageSplit*>::iterator itor = partsForSplit.begin();
+	while (itor != partsForSplit.end())
+	{
+		CImageSplit* pSplit = itor[0];
+		if (pSplit != NULL)
+			delete pSplit;
+
+		itor =partsForSplit.erase(itor);
+	}
 }
 
 BOOL CIdCardRecognition::ExtractIdCardNo(Mat& orgImg, Vec4i& cardNoInfo, Vec2i& firstCharInfo)
@@ -131,17 +177,24 @@ BOOL CIdCardRecognition::ExtractIdCardNo(Mat& orgImg, Vec4i& cardNoInfo, Vec2i& 
 
 void CIdCardRecognition::OnExtractUsefulPartImg(Mat& partImg, int partIdx)
 {
-
+	char fileNmae[ID_CARD_IMG_NAME_MAX] = { 0 };
+	sprintf_s(fileNmae, ID_CARD_IMG_NAME_MAX - 1, "E:\\self\\opencv\\img\\part%d.jpg", partIdx);
+	imwrite(fileNmae, partImg);
 }
 
 BOOL CIdCardRecognition::SplitUsefulPart(CImageSplit* pPartForSplit, vector<Vec4i>& splitInfo)
 {
-	return TRUE;
+	if (!pPartForSplit->InitSplit())
+		return FALSE;
+
+	return pPartForSplit->Split(splitInfo);
 }
 
 void CIdCardRecognition::OnSplitUsefulPartImg(Mat& splitImg, int partIdx, int splitIdx)
 {
-
+	char fileNmae[ID_CARD_IMG_NAME_MAX] = { 0 };
+	sprintf_s(fileNmae, ID_CARD_IMG_NAME_MAX - 1, "E:\\self\\opencv\\img\\part%d_%d.jpg", partIdx, splitIdx);
+	imwrite(fileNmae, splitImg);
 }
 
 BOOL CIdCardRecognition::Recogniton(CImageSplit* pPartForSplit)

@@ -23,6 +23,7 @@ public:
 public:
 	BOOL LoadImg(const char* pFileName);
 	BOOL ExtractAllUsefulParts();
+	void FreeAllUsefulParts();
 	BOOL Recognition();
 
 protected:
@@ -30,6 +31,7 @@ protected:
 	virtual BOOL ThresholdImg(Mat& srcImg, Mat& destImg)=0;
 
 	virtual BOOL ExtractUsefulParts(Mat& srcImg, vector<CImageSplit*>& partsForSplit)=0;
+	virtual void FreeUsefulParts(vector<CImageSplit*>& partsForSplit) = 0;
 	virtual void OnExtractUsefulPartImg(Mat& partImg, int partIdx) = 0;
 
 	virtual BOOL SplitUsefulPart(CImageSplit* pPartForSplit, vector<Vec4i>& splitInfo)=0;

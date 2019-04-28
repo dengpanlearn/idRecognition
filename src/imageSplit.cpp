@@ -10,9 +10,10 @@ using namespace cv;
 using namespace std;
 
 
-CImageSplit::CImageSplit(Mat& orgImg)
+CImageSplit::CImageSplit(Mat& orgImg, IMAGE_SPLIT_PARAM* pParam)
 {
 	m_orgImg = orgImg;
+	memcpy(&m_param, pParam, sizeof(IMAGE_SPLIT_PARAM));
 }
 
 
@@ -22,12 +23,12 @@ CImageSplit::~CImageSplit()
 
 BOOL CImageSplit::InitSplit()
 {
-	return InitSplit(m_orgImg);
+	return InitSplit(m_orgImg, &m_param);
 }
 
-BOOL CImageSplit::Split(vector<Vec4i>& childInfo)
+BOOL CImageSplit::Split(vector<Vec4i>& childInfos)
 {
-	return Split(m_orgImg, childInfo);
+	return SplitWork(m_orgImg, &m_param, childInfos);
 }
 
 void CImageSplit::SplitRecognition()

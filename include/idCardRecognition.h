@@ -18,6 +18,7 @@ protected:
 	virtual BOOL FilterImg(Mat& srcImg, Mat& destImg);
 	virtual BOOL ThresholdImg(Mat& srcImg, Mat& destImg);
 	virtual BOOL ExtractUsefulParts(Mat& srcImg, vector<CImageSplit*>& partsForSplit);
+	virtual void FreeUsefulParts(vector<CImageSplit*>& partsForSplit);
 	virtual void OnExtractUsefulPartImg(Mat& partImg, int partIdx);
 
 	virtual BOOL SplitUsefulPart(CImageSplit* pPartForSplit, vector<Vec4i>& splitInfo);

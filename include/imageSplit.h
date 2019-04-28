@@ -13,25 +13,36 @@ using std::vector;
 using cv::Mat;
 using cv::Vec4i;
 
+struct IMAGE_SPLIT_PARAM
+{
+	int rowLinesForChkStart;
+	int rowLinesForChkEnd;
+	int colLinesForChkStart;
+	int colLinesForChkEnd;
+
+	int  minSplitUnits;
+};
+
 class CImageSplit
 {
 public:
-	CImageSplit(Mat& orgImg);
+	CImageSplit(Mat& orgImg, IMAGE_SPLIT_PARAM* pParam);
 	virtual ~CImageSplit();
 
 public:
 	BOOL InitSplit();
-	BOOL Split(vector<Vec4i>& childInfo);
+	BOOL Split(vector<Vec4i>& childInfos);
 
 	void SplitRecognition();
 	inline void GetOrgImg(Mat& orgImg);
 
 protected:
-	virtual BOOL InitSplit(Mat& orgImg)=0;
-	virtual BOOL Split(Mat& orgImg, vector<Vec4i>& childInfo) = 0;
+	virtual BOOL InitSplit(Mat& srcImg, IMAGE_SPLIT_PARAM* pParam)=0;
+	virtual BOOL SplitWork(Mat& srcImg, IMAGE_SPLIT_PARAM* pParam, vector<Vec4i>& childInfos) = 0;
 
 private:
 	Mat							m_orgImg;
+	IMAGE_SPLIT_PARAM			m_param;
 	vector<CSpliteRecognition*> m_splitsForRecog;
 };
 
