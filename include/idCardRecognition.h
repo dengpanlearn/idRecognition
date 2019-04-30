@@ -16,7 +16,7 @@ public:
 
 protected:
 	virtual BOOL FilterImg(Mat& srcImg, Mat& destImg);
-	virtual BOOL ThresholdImg(Mat& srcImg, Mat& destImg);
+	virtual BOOL ThresholdImg(Mat& srcImg, Mat& destImg, int thresholdVal);
 	virtual BOOL ExtractUsefulParts(Mat& srcImg, vector<CImageSplit*>& partsForSplit);
 	virtual void FreeUsefulParts(vector<CImageSplit*>& partsForSplit);
 	virtual void OnExtractUsefulPartImg(Mat& partImg, int partIdx);
@@ -33,10 +33,13 @@ private:
 		EXTRACT_ID_CARD_STEP_WAIT_END_PIX,
 	};
 
+	void ExtractIdCardBorderRows(Mat& srcImg, Vec2i& borderInfo);
+	void ExtractIdCardBorderCols(Mat& srcImg, Vec2i& borderInfo);
+
 	BOOL ExtractIdCardNo(Mat& orgImg, Vec4i& cardNoInfo, Vec2i& firstCharInfo);
 	BOOL ExtractIdCardNoRows(Mat& orgImg, Vec2i& rowStartEnd);
 	BOOL ExtractIdCardNoCols(Mat& orgImg, Vec2i& colStartEnd, Vec2i& firstChar);
-
+	BOOL CheckExtractedIdCardNo(Mat& srcImg, Vec4i& cardNoInfo, Vec2i& firstChar);
 	int CalcRowStartByIdCarNo(Mat& orgImg, Vec4i& cardNoInfo, Vec2i& firstCharInfo);
 
 	BOOL ExtractIdCardHeadImg(Mat& noneCardNoImg, Vec4i& headImgInfo);

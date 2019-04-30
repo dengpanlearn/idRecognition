@@ -9,6 +9,9 @@
 
 using namespace std;
 using namespace cv;
+
+#define IMG_THRESHOHLD_DFT		110
+#define	IMG_THRESHOHLD_MAX		160
 CImageRecognition::CImageRecognition()
 {
 }
@@ -25,32 +28,56 @@ BOOL CImageRecognition::LoadImg(const char* pFileName)
 	if (m_orgImg.data == NULL)
 		return FALSE;
 
-	Mat grayImg;
-	grayImg.create(m_orgImg.size(), m_orgImg.type());
+	m_grayImg.create(m_orgImg.size(), CV_8UC1);
 
-	cvtColor(m_orgImg, grayImg, COLOR_BGR2GRAY);
-	if (!FilterImg(grayImg, grayImg))
+	for (int i = 0; i < m_orgImg.rows; i++)
+	{
+		for (int j = 0; j < m_orgImg.cols; j++)
+		{
+			Vec3b curVal = m_orgImg.at<Vec3b>(i, j);
+		//	unsigned char bVal = curVal[0];
+		//	unsigned char gVal = curVal[1];
+			unsigned char rVal = curVal[2];
+		//	grayImg.at<unsigned char>(i, j) = 0.9*rVal + 0.05*gVal + 0.05*bVal;
+			m_grayImg.at<unsigned char>(i, j) = rVal;
+		}
+	}
+
+
+	//cvtColor(m_orgImg, grayImg, COLOR_BGR2GRAY);
+	if (!FilterImg(m_grayImg, m_grayImg))
 		return FALSE;
 
-	m_binImg.create(grayImg.size(), grayImg.type());
-	if (!ThresholdImg(grayImg, m_binImg))
+	m_binImg.create(m_grayImg.size(), m_grayImg.type());
+	if (!ThresholdImg(m_grayImg, m_binImg, IMG_THRESHOHLD_DFT))
 		return FALSE;
 
 	m_partsForSplit.clear();
-#if 0
+#if 1
 	namedWindow("org Img", WINDOW_NORMAL);
 	namedWindow("gray Img", WINDOW_NORMAL);
 	namedWindow("bin Img", WINDOW_NORMAL);
 	imshow("org Img", m_orgImg);
-	imshow("gray Img", grayImg);
+	imshow("gray Img", m_grayImg);
 	imshow("bin Img", m_binImg);
+	waitKey(0);
 #endif
 	return TRUE;
 }
 
 BOOL CImageRecognition::ExtractAllUsefulParts()
 {
-	if (!ExtractUsefulParts(m_binImg, m_partsForSplit))
+	int threshold = IMG_THRESHOHLD_DFT; 
+	for (; threshold < IMG_THRESHOHLD_MAX; )
+	{
+		if (ExtractUsefulParts(m_binImg, m_partsForSplit))
+			break;
+
+		threshold += 3;
+		ThresholdImg(m_grayImg, m_binImg, threshold);
+	};
+
+	if (threshold >= IMG_THRESHOHLD_MAX)
 		return FALSE;
 
 	for (int i = 0; i < m_partsForSplit.size(); i++)

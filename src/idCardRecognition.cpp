@@ -13,20 +13,29 @@ using namespace std;
 using namespace cv;
 
 // threshold for id card image
-#define	ID_CARD_IMAGE_THRESHOLD_TO_BIN							116		
+#define ID_CARD_BORDER_MAX_ROWS(_rows)					((_rows)/3)
+#define	ID_CARD_BORDER_MAX_COLS(_cols)					((_cols)/3)
+#define ID_CARD_BORDER_MIN_POINTS_PER_ROW(_cols)		((int)((_cols)*0.50))
+#define ID_CARD_BORDER_MIN_POINTS_PER_COL(_rows)		((int)((_rows)*0.50))
+#define	ID_CARD_IMAGE_THRESHOLD_TO_BIN							110
 
 #define	ID_CARD_NO_ROWS_MIN(_imgrows)							((_imgrows)/3)
 #define	ID_CARD_NO_MIN_POINTS_PER_ROWLINE(_imgcols)				((_imgcols)/12)
 #define	ID_CARD_NO_MIN_ROWLINES_FOR_CHECK_START							(30)
 #define	ID_CARD_NO_MIN_ROWLINES_FOR_CHECK_END							(30)
 #define	ID_CARD_NO_MIN_COLLINES_FOR_CHECK_START(charRows)				((charRows)/6)
-#define	ID_CARD_NO_MIN_COLLINES_FOR_CHECK_END(charRows)					((charRows)/10)
+#define	ID_CARD_NO_MIN_COLLINES_FOR_CHECK_END(charRows)					((charRows)/12)
 #define ID_CARD_NO_MIN_CHARS											20
 #define	ID_CARD_NO_CHARS_MAX_BETWEENS(charRows)							((charRows)/2)
 #define ID_CARD_NO_MIN_CHARS_FOR_CHECK									3
+#define	ID_CARD_NO_MIN_COL_START(_cols)									((_cols)/3)
+#define ID_CARD_NO_MIN_COLS_PER_CHAR(_rows)								((_rows)/3)
 
-#define ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_START(charCols)			((charCols)/6)
-#define ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_END(charCols)				((charCols)/10)
+#define ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_START(charWidth)			((charWidth)/6)
+#define ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_END(charWidth)				((charWidth)/12+5)
+
+#define ID_CARD_CHAR_MIN_COLSLINES_FOR_CHECK_START(charWidth)			((charWidth)/6)
+#define ID_CARD_CHAR_MIN_COLSLINES_FOR_CHECK_END(charWidth)				((charWidth)/12)
 #define ID_CARD_CHAR_GROUPS_WITHOUT_CARD_NO								4
 
 #define ID_CARD_COMPENSATE_POINTS_FOR_COL_ROW(charCols)					((charCols)/6)
@@ -51,13 +60,25 @@ CIdCardRecognition::~CIdCardRecognition()
 
 BOOL CIdCardRecognition::FilterImg(Mat& srcImg, Mat& destImg)
 {
-//	medianBlur(srcImg, destImg, 3);
+	medianBlur(srcImg, destImg, 3);
+	//Mat element = getStructuringElement(MORPH_RECT, Size(3, 3));
+//	morphologyEx(destImg, destImg, MORPH_ERODE, element);
+	
 	return TRUE;
 }
 
-BOOL CIdCardRecognition::ThresholdImg(Mat& srcImg, Mat& destImg)
+BOOL CIdCardRecognition::ThresholdImg(Mat& srcImg, Mat& destImg, int thresholdVal)
 {
-	threshold(srcImg, destImg, ID_CARD_IMAGE_THRESHOLD_TO_BIN, 255, THRESH_BINARY);
+	threshold(srcImg, destImg, thresholdVal, 255, THRESH_BINARY);
+	namedWindow("bin1", WINDOW_NORMAL);
+	imshow("bin1", destImg);
+	Vec2i borderRowInfo;
+	ExtractIdCardBorderRows(destImg, borderRowInfo);
+
+	Vec2i borderColInfo;
+	ExtractIdCardBorderCols(destImg, borderColInfo);
+
+	destImg = destImg(Range(borderRowInfo[0], borderRowInfo[1]), Range(borderColInfo[0], borderColInfo[1]));
 	return TRUE;
 }
 
@@ -65,28 +86,39 @@ BOOL CIdCardRecognition::ExtractUsefulParts(Mat& srcImg, vector<CImageSplit*>& p
 {
 	Vec4i cardNoInfo;
 	Vec2i cardNoFirstCharInfo;
+
 	if (!ExtractIdCardNo(srcImg, cardNoInfo, cardNoFirstCharInfo))
 		return FALSE;
 
+
+	Mat cpyImg(srcImg.size(), srcImg.type());
+	srcImg.copyTo(cpyImg);
+
+	if (!CheckExtractedIdCardNo(cpyImg, cardNoInfo, cardNoFirstCharInfo))
+		return FALSE;
+
+//	int firstCharWidth = cardNoFirstCharInfo[1] - cardNoFirstCharInfo[0];
+	int firstCharWidth = cardNoInfo[1] - cardNoInfo[0];
 	int startRow = CalcRowStartByIdCarNo(srcImg, cardNoInfo, cardNoFirstCharInfo);
 	if (startRow < 0)
 		return FALSE;
 
-	int compensates = ID_CARD_COMPENSATE_POINTS_FOR_COL_ROW(cardNoFirstCharInfo[1] - cardNoFirstCharInfo[0]);
+	int compensates = ID_CARD_COMPENSATE_POINTS_FOR_COL_ROW(firstCharWidth);
 	if (startRow > compensates)
 		startRow -= compensates;
 
 	if (cardNoInfo[2] > compensates)
 		cardNoInfo[2] -= compensates;
 
-	Mat usefulImg = srcImg(Range(startRow, cardNoInfo[1]), Range(cardNoInfo[2], cardNoInfo[3]));
+	Mat usefulImg = cpyImg(Range(startRow, cardNoInfo[1]), Range(cardNoInfo[2], cardNoInfo[3]));
 #if 0
 	namedWindow("useful img", WINDOW_NORMAL);
 	imshow("useful img", usefulImg);
 #endif
 
 	Vec4i headImgInfo;
-	Mat noneCardNoImg = srcImg(Range(startRow, cardNoInfo[0]), Range(cardNoInfo[2], cardNoInfo[3]));
+	Mat noneCardNoImg = cpyImg(Range(startRow, cardNoInfo[0]), Range(cardNoInfo[2], cardNoInfo[3]));
+	
 	if (ExtractIdCardHeadImg(noneCardNoImg, headImgInfo))
 	{
 #if 0
@@ -95,19 +127,20 @@ BOOL CIdCardRecognition::ExtractUsefulParts(Mat& srcImg, vector<CImageSplit*>& p
 #endif
 		vector<Vec2i> charGroupsInfo;
 		Mat groupsImg = noneCardNoImg(Range::all(), Range(0, headImgInfo[2]));
-		int charCols = cardNoFirstCharInfo[1] - cardNoFirstCharInfo[0];
-		if (ExtractIdCardCharGroups(groupsImg, charGroupsInfo, charCols))
+		if (ExtractIdCardCharGroups(groupsImg, charGroupsInfo, firstCharWidth))
 		{
 			for (int k = 0; k < charGroupsInfo.size(); k++)
 			{
 				Mat splitImg = groupsImg(Range(charGroupsInfo[k][0], charGroupsInfo[k][1]), Range::all());
 				IMAGE_SPLIT_PARAM splitParam;
 				splitParam.minSplitUnits = 2;
-				splitParam.rowLinesForChkStart = ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_START(charCols);
-				splitParam.rowLinesForChkEnd = ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_END(charCols);
+				splitParam.rowLinesForChkStart = ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_START(firstCharWidth);
+				splitParam.rowLinesForChkEnd = ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_END(firstCharWidth);
 
-				splitParam.colLinesForChkStart = splitParam.rowLinesForChkStart;
-				splitParam.colLinesForChkEnd = splitParam.rowLinesForChkEnd;
+				splitParam.colLinesForChkStart = ID_CARD_CHAR_MIN_COLSLINES_FOR_CHECK_START(firstCharWidth);
+				splitParam.colLinesForChkEnd = ID_CARD_CHAR_MIN_COLSLINES_FOR_CHECK_END(firstCharWidth);
+				if (k == 2)
+					splitParam.colLinesForChkEnd = 2;
 			//	if (splitParam.colLinesForChkEnd > 3)
 				//	splitParam.colLinesForChkEnd = 3;
 				CCharSplit* pCharSplit = new CCharSplit(splitImg, &splitParam);
@@ -123,21 +156,21 @@ BOOL CIdCardRecognition::ExtractUsefulParts(Mat& srcImg, vector<CImageSplit*>& p
 #endif
 			}
 		}
-	
-		IMAGE_SPLIT_PARAM splitCardNoParam;
-		splitCardNoParam.minSplitUnits = 2;
-		splitCardNoParam.rowLinesForChkStart = ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_START(charCols);
-		splitCardNoParam.rowLinesForChkEnd = ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_END(charCols);
-
-		splitCardNoParam.colLinesForChkStart = splitCardNoParam.rowLinesForChkStart;
-		splitCardNoParam.colLinesForChkEnd = splitCardNoParam.rowLinesForChkEnd;
-
-		Mat cardNoImg = srcImg(Range(cardNoInfo[0], cardNoInfo[1]), Range(cardNoInfo[2], cardNoInfo[3]));
-		CCharSplit* pCharCardNoSplit = new CCharSplit(cardNoImg, &splitCardNoParam);
-
-		if (pCharCardNoSplit != NULL)
-			partsForSplit.push_back(pCharCardNoSplit);
 	}
+
+	IMAGE_SPLIT_PARAM splitCardNoParam;
+	splitCardNoParam.minSplitUnits = 2;
+	splitCardNoParam.rowLinesForChkStart = ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_START(firstCharWidth);
+	splitCardNoParam.rowLinesForChkEnd = ID_CARD_CHAR_MIN_ROWSLINES_FOR_CHECK_END(firstCharWidth);
+
+	splitCardNoParam.colLinesForChkStart = ID_CARD_CHAR_MIN_COLSLINES_FOR_CHECK_START(firstCharWidth);
+	splitCardNoParam.colLinesForChkEnd = ID_CARD_CHAR_MIN_COLSLINES_FOR_CHECK_END(firstCharWidth);
+
+	Mat cardNoImg = cpyImg(Range(cardNoInfo[0], cardNoInfo[1]), Range(cardNoInfo[2], cardNoInfo[3]));
+	CCharSplit* pCharCardNoSplit = new CCharSplit(cardNoImg, &splitCardNoParam);
+
+	if (pCharCardNoSplit != NULL)
+		partsForSplit.push_back(pCharCardNoSplit);
 
 	return TRUE;
 }
@@ -153,6 +186,124 @@ void CIdCardRecognition::FreeUsefulParts(vector<CImageSplit*>& partsForSplit)
 
 		itor =partsForSplit.erase(itor);
 	}
+}
+
+void CIdCardRecognition::ExtractIdCardBorderRows(Mat& srcImg, Vec2i& borderInfo)
+{
+	int i = 0;
+	for ( ; i < ID_CARD_BORDER_MAX_ROWS(srcImg.rows); i++)
+	{
+		int j = 0;
+		int onPoints = 0;
+		for (; j < srcImg.cols; j++)
+		{
+			if (!srcImg.at<unsigned char>(i, j))
+				goto _ON_POINTS_1;
+
+			if ((i > 0) && (!srcImg.at<unsigned char>(i - 1, j)))
+				goto _ON_POINTS_1;
+
+			if ((i > 0) && (j > 0) && (!srcImg.at<unsigned char>(i - 1, j - 1)))
+				goto _ON_POINTS_1;
+
+			continue;
+
+		_ON_POINTS_1:
+			onPoints++;
+		}
+
+		if (onPoints < ID_CARD_BORDER_MIN_POINTS_PER_ROW(srcImg.cols))
+			break;
+	}
+
+	borderInfo[0] = i;
+
+	i = srcImg.rows-1;
+	for (; i > ID_CARD_BORDER_MAX_ROWS(srcImg.rows); i--)
+	{
+		int j = 0;
+		int onPoints = 0;
+		for (; j < srcImg.cols; j++)
+		{
+			if (!srcImg.at<unsigned char>(i, j))
+				goto _ON_POINTS_2;
+
+			if ((i < (srcImg.rows - 1)) && (!srcImg.at<unsigned char>(i + 1, j)))
+				goto _ON_POINTS_2;
+
+			if ((i < (srcImg.rows - 1)) && (j < (srcImg.cols-1)) && (!srcImg.at<unsigned char>(i + 1, j + 1)))
+				goto _ON_POINTS_2;
+
+			continue;
+
+		_ON_POINTS_2:
+			onPoints++;
+		}
+
+		if (onPoints < ID_CARD_BORDER_MIN_POINTS_PER_ROW(srcImg.cols))
+			break;
+	}
+
+	borderInfo[1] = i+1;
+}
+
+void CIdCardRecognition::ExtractIdCardBorderCols(Mat& srcImg, Vec2i& borderInfo)
+{
+	int i = 0;
+	for (; i < ID_CARD_BORDER_MAX_COLS(srcImg.cols); i++)
+	{
+		int j = 0;
+		int onPoints = 0;
+		for (; j < srcImg.rows; j++)
+		{
+			if (!srcImg.at<unsigned char>(j, i))
+				goto _ON_POINTS_1;
+
+			if ((i > 0) && (!srcImg.at<unsigned char>(j, i-1)))
+				goto _ON_POINTS_1;
+
+			if ((i > 0) && (j > 0) && (!srcImg.at<unsigned char>(j - 1, i - 1)))
+				goto _ON_POINTS_1;
+
+			continue;
+
+		_ON_POINTS_1:
+			onPoints++;
+		}
+
+		if (onPoints < ID_CARD_BORDER_MIN_POINTS_PER_COL(srcImg.rows))
+			break;
+	}
+
+	borderInfo[0] = i;
+
+	i = srcImg.cols - 1;
+	for (; i > ID_CARD_BORDER_MAX_COLS(srcImg.cols); i--)
+	{
+		int j = 0;
+		int onPoints = 0;
+		for (; j < srcImg.rows; j++)
+		{
+			if (!srcImg.at<unsigned char>(j, i))
+				goto _ON_POINTS_2;
+
+			if ((i < (srcImg.cols - 1)) && (!srcImg.at<unsigned char>(j, i+1)))
+				goto _ON_POINTS_2;
+
+			if ((i < (srcImg.cols - 1)) && (j < (srcImg.rows - 1)) && (!srcImg.at<unsigned char>(j + 1, i + 1)))
+				goto _ON_POINTS_2;
+
+			continue;
+
+		_ON_POINTS_2:
+			onPoints++;
+		}
+
+		if (onPoints < ID_CARD_BORDER_MIN_POINTS_PER_COL(srcImg.rows))
+			break;
+	}
+
+	borderInfo[1] = i + 1;
 }
 
 BOOL CIdCardRecognition::ExtractIdCardNo(Mat& orgImg, Vec4i& cardNoInfo, Vec2i& firstCharInfo)
@@ -178,7 +329,7 @@ BOOL CIdCardRecognition::ExtractIdCardNo(Mat& orgImg, Vec4i& cardNoInfo, Vec2i& 
 void CIdCardRecognition::OnExtractUsefulPartImg(Mat& partImg, int partIdx)
 {
 	char fileNmae[ID_CARD_IMG_NAME_MAX] = { 0 };
-	sprintf_s(fileNmae, ID_CARD_IMG_NAME_MAX - 1, "E:\\self\\opencv\\img\\part%d.jpg", partIdx);
+	sprintf_s(fileNmae, ID_CARD_IMG_NAME_MAX - 1, "E:\\self\\opencv\\img\\card1\\part%d.jpg", partIdx);
 	imwrite(fileNmae, partImg);
 }
 
@@ -193,7 +344,7 @@ BOOL CIdCardRecognition::SplitUsefulPart(CImageSplit* pPartForSplit, vector<Vec4
 void CIdCardRecognition::OnSplitUsefulPartImg(Mat& splitImg, int partIdx, int splitIdx)
 {
 	char fileNmae[ID_CARD_IMG_NAME_MAX] = { 0 };
-	sprintf_s(fileNmae, ID_CARD_IMG_NAME_MAX - 1, "E:\\self\\opencv\\img\\part%d_%d.jpg", partIdx, splitIdx);
+	sprintf_s(fileNmae, ID_CARD_IMG_NAME_MAX - 1, "E:\\self\\opencv\\img\\card1\\part%d_%d.jpg", partIdx, splitIdx);
 	imwrite(fileNmae, splitImg);
 }
 
@@ -372,6 +523,27 @@ BOOL CIdCardRecognition::ExtractIdCardNoCols(Mat& orgImg, Vec2i& colStartEnd, Ve
 	return (colStartEnd[1] > colStartEnd[0]);
 }
 
+BOOL CIdCardRecognition::CheckExtractedIdCardNo(Mat& srcImg, Vec4i& cardNoInfo, Vec2i& firstChar)
+{
+	if (cardNoInfo[2] > ID_CARD_NO_MIN_COL_START(srcImg.cols))
+		return FALSE;
+
+
+	if ((firstChar[1] - firstChar[0]) < ID_CARD_NO_MIN_COLS_PER_CHAR(cardNoInfo[1]- cardNoInfo[0]))
+	{
+		Mat element = getStructuringElement(MORPH_RECT, Size(3, 3));
+		morphologyEx(srcImg, srcImg, MORPH_ERODE, element);
+
+		// ÖØÐÂ¼ì²â
+		if (!ExtractIdCardNo(srcImg, cardNoInfo, firstChar))
+			return FALSE;
+
+		return (firstChar[1] - firstChar[0]) >= ID_CARD_NO_MIN_COLS_PER_CHAR(cardNoInfo[1] - cardNoInfo[0]);
+	}
+
+	return TRUE;
+}
+
 int CIdCardRecognition::CalcRowStartByIdCarNo(Mat& orgImg, Vec4i& cardNoInfo, Vec2i& firstCharInfo)
 {
 	int keepLines = 0;
@@ -434,7 +606,8 @@ int CIdCardRecognition::CalcRowStartByIdCarNo(Mat& orgImg, Vec4i& cardNoInfo, Ve
 
 		_SAVE_START_END:
 			startEndPos[0] = i + keepLines - 1;
-			charsStartEnd.push_back(startEndPos);
+			if ((startEndPos[1]- startEndPos[0]) > (firstCharInfo[1]- firstCharInfo[0])/3)
+				charsStartEnd.push_back(startEndPos);
 			keepLines = 0;
 			step = EXTRACT_ID_CARD_STEP_FIND_START_PIX;
 		}
