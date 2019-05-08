@@ -1,3 +1,5 @@
 <RCC>
-    <qresource prefix="/idRecognition"/>
+    <qresource prefix="/idRecognition">
+        <file>idRecognition.qss</file>
+    </qresource>
 </RCC>
