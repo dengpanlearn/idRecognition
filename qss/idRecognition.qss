@@ -2,6 +2,11 @@ QMainWindow {
    background-color: beige;
 }
 
+QWidget#Symbol_Gen_Widget{
+    background-color: white;
+    min-width: 650px;
+    min-height:300px;
+}
 
 QMenu{
     background-color: white;
@@ -32,3 +37,77 @@ QMenu::item{
 QMenu::item:selected{
     background-color: #2dabf9;
 }
+
+QLabel{
+    border: none;
+    min-width: 20px;
+    min-height: 50px;
+
+    padding:2px;
+    font-size: 20px;
+    text-align:center;
+}
+
+QLineEdit{
+    border-width: 1px;
+    padding: 1px;
+    border-style: solid;
+    border-color: darkkhaki;
+    border-radius: 5px;
+    min-width: 100px;
+    min-height: 50px;
+    text-align:center;
+    font-size:15px;
+    margin-left:20px;
+}
+
+QLineEdit:focus {
+    border-width: 3px;
+    padding: 0px;
+}
+
+
+QPushButton {
+    border: 1px solid #555;
+    padding: 4px;
+    min-width: 65px;
+    min-height: 50px;
+    max-width:70px;
+    border-radius:5px;
+    font-size: 20px;
+    text-align:center;
+}
+
+QPushButton:hover {
+    background-color: #999;
+}
+
+QPushButton:pressed {
+    background-color: #333;
+    border-color: #555;
+    color: beige;
+}
+
+QPushButton:disabled {
+    color: #333333;
+}
+
+
+QProgressBar {
+ border: 2px solid grey;
+ border-radius: 5px;
+ min-height:20px;
+ min-width:300px;
+ text-align: center;
+  margin-left:20px;
+}
+
+QProgressBar::chunk {
+ background-color: #05B8CC;
+ min-width: 10px;
+  margin: 0.5px;
+}
+
+
+
+

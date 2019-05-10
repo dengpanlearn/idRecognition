@@ -8,6 +8,7 @@
 #include <qmenu.h>
 #include <qmenubar.h>
 #include "../include/recognitionWindow.h"
+#include "../include/symbolGenWidget.h"
 #include "../include/resourceDef.h"
 
 CRecognitionWindow::CRecognitionWindow(QWidget *parent)
@@ -41,4 +42,21 @@ void CRecognitionWindow::RetranslateInit()
 		qApp->setStyleSheet(qssFile.readAll());
 		qssFile.close();
 	}
+
+	connect(m_pActChineseSymbolGen, SIGNAL(triggered(bool)), this, SLOT(OnSelectChineseGen(bool)));
+}
+
+void CRecognitionWindow::OnSelectChineseGen(bool check)
+{
+
+	if (m_pChineseSymbolWidget == NULL)
+	{
+		m_pChineseSymbolWidget = new CSymbolGenWidget();
+	}
+
+
+	if (this->centralWidget() != NULL)
+		this->takeCentralWidget();
+
+	this->setCentralWidget(m_pChineseSymbolWidget);
 }

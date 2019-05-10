@@ -20,6 +20,9 @@ private:
 	void InitUi();
 	void RetranslateInit();
 
+private slots:
+	void OnSelectChineseGen(bool);
+
 private:
 	QAction*		m_pActChineseSymbolGen;
 	QAction*		m_pActSymbolTrain;
