@@ -159,7 +159,7 @@ void CChineseSymbolGenerator::GeneratorNextGroup(SymbolGeneratorParam* pParam, U
 				QTextCodec* pTextCodec = QTextCodec::codecForLocale();
 				QPainter painter(pImage);
 				QPen pen = painter.pen();
-			//	QRect rect = pImage->rect();
+				QRect rect = pImage->rect();
 			//	painter.translate(rect.width()/2, rect.height()/2);
 				painter.rotate(rotate);
 				pen.setColor(Qt::black);
@@ -176,7 +176,7 @@ void CChineseSymbolGenerator::GeneratorNextGroup(SymbolGeneratorParam* pParam, U
 				
 				memcpy(charBuf, &symbolValue, 2);
 				QString symbString = pTextCodec->toUnicode(charBuf);
-				painter.drawText(pImage->rect(), Qt::AlignCenter, symbString);
+				painter.drawText(rect, Qt::AlignCenter, symbString);
 				
 			} while (hasBold--);
 		}

@@ -14,4 +14,5 @@
 #define SYMBOL_GEN_WIDGET_LAB_DIR_OUT					"符号生成路径"
 #define SYMBOL_GEN_WIDGET_BTN_DIR_OUT					"选择"
 #define SYMBOL_GEN_WIDGET_BTN_GENERATOR					"生成"
+#define SYMBOL_GEN_WIDGET_DIR_OUT_FILEDIALGO			"选择路径"
 #endif // !__RESOURCE_DEF_H__

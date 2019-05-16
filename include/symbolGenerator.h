@@ -43,7 +43,6 @@ protected:
 private:
 	SymbolGeneratorParam m_param;
 	UINT m_curSymbolVal;
-
 };
 
 

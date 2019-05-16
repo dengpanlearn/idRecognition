@@ -10,6 +10,7 @@
 #include "../include/recognitionWindow.h"
 #include "../include/symbolGenWidget.h"
 #include "../include/resourceDef.h"
+#include "../include/global.h"
 
 CRecognitionWindow::CRecognitionWindow(QWidget *parent)
 	: QMainWindow(parent)
@@ -17,6 +18,15 @@ CRecognitionWindow::CRecognitionWindow(QWidget *parent)
 	m_pChineseSymbolWidget = NULL;
 	InitUi();
 	RetranslateInit();
+}
+
+CRecognitionWindow::~CRecognitionWindow()
+{
+	if (m_pChineseSymbolWidget != NULL)
+	{
+		delete m_pChineseSymbolWidget;
+		m_pChineseSymbolWidget = NULL;
+	}
 }
 
 void CRecognitionWindow::InitUi()
@@ -44,6 +54,15 @@ void CRecognitionWindow::RetranslateInit()
 	}
 
 	connect(m_pActChineseSymbolGen, SIGNAL(triggered(bool)), this, SLOT(OnSelectChineseGen(bool)));
+}
+
+void CRecognitionWindow::closeEvent(QCloseEvent *closeEvent)
+{
+	if (m_pChineseSymbolWidget != NULL)
+	{
+		m_pChineseSymbolWidget->close();
+	}
+	GlobalExit();
 }
 
 void CRecognitionWindow::OnSelectChineseGen(bool check)

@@ -15,6 +15,10 @@ class CRecognitionWindow : public QMainWindow
 
 public:
 	CRecognitionWindow(QWidget *parent = Q_NULLPTR);
+	~CRecognitionWindow();
+
+protected:
+	virtual void closeEvent(QCloseEvent *closeEvent);
 
 private:
 	void InitUi();
