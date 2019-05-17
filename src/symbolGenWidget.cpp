@@ -59,7 +59,6 @@ void CSymbolGenWidget::InitUi()
 	setLayout(pLytMain);
 
 	m_pServerTask = new CQtServerTask();
-	m_pServerTask->setStackSize(CHINESE_SYM_GEN_TASK_ST);
 }
 
 void CSymbolGenWidget::RetranslateUi()
@@ -71,17 +70,15 @@ void CSymbolGenWidget::RetranslateUi()
 		qssFile.close();
 	}
 
-
-	m_pServerTask->start();
-
 	m_pGenAgent = new CChineseSymGenAgent(NULL, m_pServerTask);
 	m_pGenAgent->moveToThread(m_pServerTask);
-	
+	m_pGenAgent->Init();
+	m_pServerTask->start();
+
 	connect(m_pBtnView, SIGNAL(clicked(bool)), this, SLOT(OnViewOutDir(bool)));
 	connect(m_pBtnGen, SIGNAL(clicked(bool)), this, SLOT(OnStartGen(bool)));
-	connect(m_pGenAgent, SIGNAL(SignalGenProgress(int)), this, SLOT(OnUpdateProgress(int)));
-	connect(m_pGenAgent, SIGNAL(SignalGenResult(bool)), this, SLOT(OnUpdateResult(bool)));
-	connect(m_pServerTask, SIGNAL(finished()), m_pServerTask, SLOT(deleteLater()));
+	connect(m_pGenAgent, SIGNAL(SignalWorkProgress(int)), this, SLOT(OnUpdateProgress(int)));
+	connect(m_pGenAgent, SIGNAL(SignalWorkResult(bool)), this, SLOT(OnUpdateResult(bool)));
 }
 
 void CSymbolGenWidget::closeEvent(QCloseEvent *closeEvent)
@@ -149,7 +146,7 @@ void CSymbolGenWidget::OnStartGen(bool check)
 	}
 
 
-	if ((m_pGenAgent == NULL) || !m_pGenAgent->StartGen(outDir))
+	if ((m_pGenAgent == NULL) || !m_pGenAgent->StartWork(&outDir))
 	{
 		QTextCodec* pTextCodec = QTextCodec::codecForLocale();
 		QMessageBox msgBox;

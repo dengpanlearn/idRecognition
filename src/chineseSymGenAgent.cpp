@@ -1,22 +1,32 @@
 #include "../include/qtGlobal.h"
+#include "../include/qtGlobal.h"
 #include "chineseSymGenAgent.h"
 
 #define CHINESE_SYMBOL_IMAGE_WIDTH	55
 #define CHINESE_SYMBOL_IMAGE_HEIGHT	55
 
-CChineseSymGenAgent::CChineseSymGenAgent(QObject *parent, QThread* pServerTask)
-	: QObject(parent)
+CChineseSymGenAgent::CChineseSymGenAgent(QObject *parent, QThread* pServerObj)
+	: CQtObjectAgent(parent, pServerObj)
 {
 	m_pChineseSymGen = NULL;
 	m_genGroups = 0;
 	m_genSymsPerGroup = 0;
 	m_curGroupIdx = 0;
-	m_genStep = 0;
-	m_pThreadObj = pServerTask;
-	OnInit();
 }
 
 CChineseSymGenAgent::~CChineseSymGenAgent()
+{
+	OnClose();
+}
+ 
+void CChineseSymGenAgent::OnInit(QThread* pServerObj)
+{
+	CQtObjectAgent::OnInit(pServerObj);
+	connect(pServerObj, SIGNAL(finished()), this, SLOT(deleteLater()));
+	pServerObj->setStackSize(CHINESE_SYM_GEN_TASK_ST);
+}
+
+void CChineseSymGenAgent::OnClose()
 {
 	if (m_pChineseSymGen != NULL)
 	{
@@ -33,86 +43,8 @@ CChineseSymGenAgent::~CChineseSymGenAgent()
 		delete pImage;
 	}
 }
- 
-void CChineseSymGenAgent::OnInit()
-{
-	connect(this, SIGNAL(SignalStartGen(QString const&)), this, SLOT(OnStartGen(QString const&)));
-	connect(this, SIGNAL(SignalStopGen()), this, SLOT(OnStopGen()));
-	connect(this, SIGNAL(SignalContinueGen()), this, SLOT(OnContinueGen()));
-	connect(this, SIGNAL(SignalThreadExit()), this, SLOT(OnThreadExit()));
-	connect(m_pThreadObj, SIGNAL(finished()), this, SLOT(deleteLater()));
-}
 
-BOOL CChineseSymGenAgent::StartGen(QString& outDir)
-{
-	if (!DP_ATOMIC_CAS(m_genStep, SYM_GEN_STEP_NONE, SYM_GEN_STEP_WORKING))
-		return FALSE;
-
-	emit SignalStartGen(outDir);
-	return TRUE;
-} 
-
-void CChineseSymGenAgent::StopGen()
-{
-	if (!DP_ATOMIC_CAS(m_genStep, SYM_GEN_STEP_WORKING, SYM_GEN_STEP_WAITING_STOP))
-		return;
-
-	emit SignalStopGen();
-}
-
-void CChineseSymGenAgent::SyncExit(int timeout)
-{
-	DP_ATOMIC_SET(m_genStep, SYM_GEN_STEP_WAITING_EXIT);
-	emit SignalThreadExit();
-
-	if (!m_pThreadObj->wait(timeout))
-	{
-		m_pThreadObj->quit();
-	}
-}
-
-
-
-void CChineseSymGenAgent::OnStartGen(QString const& outDir)
-{
-	if (!PrepareStartGen())
-	{
-		OnGenResult(FALSE);
-		return;
-	}
-
-	memset(m_dirOut, 0, sizeof(m_dirOut));
-	QString2Char(outDir, m_dirOut);
-
-
-	emit SignalContinueGen();
-}
-
-
-void CChineseSymGenAgent::OnStopGen()
-{
-	// ¿Õº¯Êý
-}
-
-void CChineseSymGenAgent::OnContinueGen()
-{
-	UINT curStep = DP_ATOMIC_GET(m_genStep);
-	if (curStep == SYM_GEN_STEP_WORKING)
-	{
-		DoContinueGen();
-	}
-	else if (curStep == SYM_GEN_STEP_WAITING_STOP)
-	{
-		OnGenResult(TRUE);
-	}
-}
-
-void CChineseSymGenAgent::OnThreadExit()
-{
-	m_pThreadObj->quit();
-}
-
-BOOL CChineseSymGenAgent::PrepareStartGen()
+BOOL CChineseSymGenAgent::PrepareWork(void const* pParam)
 {
 	if (m_pChineseSymGen != NULL)
 	{
@@ -136,34 +68,43 @@ BOOL CChineseSymGenAgent::PrepareStartGen()
 	if (m_pChineseSymGen == NULL)
 		return FALSE;
 
+	QString* pOutDir = (QString*)pParam;
+	memset(m_dirOut, 0, sizeof(m_dirOut));
+	QString2Char(*pOutDir, m_dirOut);
+
 
 	m_pChineseSymGen->InitSymbolGenerator(&m_genGroups, &m_genSymsPerGroup);
 	OnCreateSymGenerator(m_symImagesPerGroup, m_genSymsPerGroup);
 	return TRUE;
 }
 
-BOOL CChineseSymGenAgent::DoContinueGen()
+void CChineseSymGenAgent::DoingWork()
 {
 	if (m_pChineseSymGen->NextSymbolGroup(m_symImagesPerGroup))
 	{
 		OnSymGeneratorPerGroup(m_symImagesPerGroup, m_curGroupIdx++);
-
-			emit SignalGenProgress((UINT)(m_curGroupIdx*100)/m_genGroups);
-			emit SignalContinueGen();
-		return TRUE;
+		NotifyContinueWork((UINT)(m_curGroupIdx * 100) / m_genGroups);
 	}
-
-
-	OnGenResult(TRUE);
-	return TRUE;
+	else
+	{
+		CQtObjectAgent::DoingWork();
+	}
 }
 
-void CChineseSymGenAgent::OnGenResult(BOOL bSuccess)
+void CChineseSymGenAgent::StoppingWork()
 {
-	emit SignalGenResult(bSuccess);
-	DP_ATOMIC_SET(m_genStep, SYM_GEN_STEP_NONE);
+	CQtObjectAgent::StoppingWork();
 }
 
+void CChineseSymGenAgent::ExitingWork()
+{
+	CQtObjectAgent::ExitingWork();
+}
+
+void CChineseSymGenAgent::OnWorkResult(BOOL bSuccess)
+{
+	CQtObjectAgent::OnWorkResult(bSuccess);
+}
 
 void CChineseSymGenAgent::OnCreateSymGenerator(QList<QImage*>& symImagesPerGroup, int symsPerGroup)
 {
