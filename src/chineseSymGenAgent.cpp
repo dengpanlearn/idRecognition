@@ -57,8 +57,8 @@ BOOL CChineseSymGenAgent::PrepareWork(void const* pParam)
 	param.rotateMax = 2;
 	param.rotateMin = -2;
 	param.rotateUnit = 2;
-	param.symbolSizeMin = 26;
-	param.symbolSizeMax = 32;
+	param.symbolSizeMin = 55;
+	param.symbolSizeMax = 55;
 	param.sizeUnit = 2;
 	param.symbolStart = 0xB0A0;
 	param.symbolEnd = 0xF7FE;

@@ -10,7 +10,7 @@
 #define	CHINESE_SYMBOL_ROTATE_MIN			-5
 #define	CHINESE_SYMBOL_ROTATE_MAX			5
 #define	CHINESE_SYMBOL_SIZE_MIN				12
-#define	CHINESE_SYMBOL_SIZE_MAX				16
+#define	CHINESE_SYMBOL_SIZE_MAX				26
 #define	CHINESE_SYMBOL_GBK_START			0xB0A1
 #define	CHINESE_SYMBOL_GBK_END				0xF7FE
 
@@ -42,7 +42,7 @@ UINT CChineseSymbolGenerator::InitGenerator(SymbolGeneratorParam* pParam, int* p
 		pParam->symbolEnd = CHINESE_SYMBOL_GBK_END;
 	}
 
-	if (pParam->symbolSizeMin >= pParam->symbolSizeMax)
+	if (pParam->symbolSizeMin > pParam->symbolSizeMax)
 	{
 		pParam->symbolSizeMin = CHINESE_SYMBOL_SIZE_MIN;
 		pParam->symbolSizeMax = CHINESE_SYMBOL_SIZE_MAX;
@@ -166,7 +166,7 @@ void CChineseSymbolGenerator::GeneratorNextGroup(SymbolGeneratorParam* pParam, U
 				QFont font = painter.font();
 
 				font.setFamily("simsun");
-				font.setPointSize(fontSize);
+				font.setPixelSize(fontSize);
 				font.setBold(hasBold);
 
 				painter.setPen(pen);
